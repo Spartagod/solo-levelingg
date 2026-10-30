@@ -215,6 +215,11 @@ function availableFormats(card, deck) {
 
   if (hasWrongs && answer.length <= 150 && mcqBalanced(answer, wrongs)) formats.push("mcq");
   if (hasWrongs && answer.length <= 110) formats.push("tf");
+
+  // Paquet en mode "QCM / Vrai ou faux uniquement" (ex : cartes générées sur un
+  // projet de code) : jamais de réponse libre, de texte à trous ou de sens inverse.
+  if (deck.quizOnly) return formats;
+
   if (isCode ? answer.length <= 90 : answer.length <= 40 && answer.split(/\s+/).length <= 6) formats.push("type");
   if (!isCode && clozeTarget(answer)) formats.push("cloze");
   if (deck.reversible && card.q.length <= 60 && answer.length <= 60) formats.push("reverse");
@@ -229,6 +234,19 @@ function chooseFormat(card, deck, opts = {}) {
 
   // Dans une partie, pas d'auto-évaluation : on veut une vraie vérification
   if (opts.noFlip && formats.length > 1) formats = formats.filter(format => format !== "flip");
+
+  // Mode "QCM / Vrai ou faux uniquement" : on alterne juste entre les deux
+  // (jamais la carte mémoire si l'une des deux formes est possible).
+  if (deck.quizOnly) {
+    let pool = formats.filter(format => format === "mcq" || format === "tf");
+    if (!pool.length) pool = formats.length ? formats : ["flip"];
+    if (pool.length > 1) {
+      const notLast = pool.filter(format => format !== card.lastFmt);
+      if (notLast.length) pool = notLast;
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   const learning = card.stage === "new" || card.stage === "learn" || card.relearn;
   let weights;
 

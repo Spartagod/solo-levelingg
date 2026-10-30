@@ -251,11 +251,16 @@ function activeFile(project) {
 
 
 // Crée (si besoin) le sujet de révision lié à ce projet, dans Apprendre.
+// quizOnly: true -> ce sujet ne pose jamais de réponse libre/texte à trous,
+// uniquement des QCM ou du vrai/faux (voir learn-engine.js).
 function ensureProjectDeck(project) {
   if (!project.deckKey || !S.learn.decks[project.deckKey]) {
     const key = `c-${uid()}`;
-    S.learn.decks[key] = { label: `Code : ${project.name}`, stat: "AGI", codeIsAnswer: false, reversible: false, custom: true, cards: [] };
+    S.learn.decks[key] = { label: `Code : ${project.name}`, stat: "AGI", codeIsAnswer: false, reversible: false, quizOnly: true, custom: true, cards: [] };
     project.deckKey = key;
+  } else if (!S.learn.decks[project.deckKey].quizOnly) {
+    // Projet créé avant l'ajout du mode QCM/Vrai-ou-faux : on le bascule aussi.
+    S.learn.decks[project.deckKey].quizOnly = true;
   }
 
   return project.deckKey;
@@ -507,6 +512,66 @@ function extractFromSql(path, content) {
 }
 
 
+// Mots qu'on ignore quand on détecte les appels de fonction dans un bloc de
+// code (mots-clés du langage + fonctions standard trop courantes pour être utiles)
+const CALL_SKIP = new Set([
+  ...CODE_KEYWORDS,
+  "print", "len", "str", "int", "float", "range", "open", "input", "console",
+  "log", "format", "join", "split", "append", "push", "map", "filter", "reduce",
+  "forEach", "toString", "parseInt", "parseFloat", "require", "super", "isinstance",
+  "enumerate", "zip", "list", "dict", "set", "tuple", "sorted", "min", "max", "sum",
+  "ValueError", "TypeError", "Exception", "KeyError", "IndexError", "RuntimeError",
+  "StopIteration", "AttributeError", "NameError", "OSError", "IOError"
+]);
+
+function detectCalls(body, selfName) {
+  const calls = [];
+  const re = /\b([A-Za-z_]\w*)\s*\(/g;
+  let m;
+
+  while ((m = re.exec(body))) {
+    const name = m[1];
+    if (name === selfName || CALL_SKIP.has(name) || calls.includes(name)) continue;
+    calls.push(name);
+    if (calls.length >= 4) break;
+  }
+
+  return calls;
+}
+
+
+function detectReturn(body) {
+  const m = body.match(/\breturn\s+([^\n;]{1,90})/);
+  return m ? m[1].trim().replace(/[;{]+$/, "") : "";
+}
+
+
+// Pas de docstring/commentaire trouvé : on construit quand même une vraie
+// réponse en analysant la structure du code (paramètres, appels, boucles,
+// gestion d'erreurs, valeur renvoyée) plutôt que de laisser une carte vide.
+function buildHeuristicSummary({ name, params, body }) {
+  const parts = [];
+
+  if (params) {
+    const count = params.split(",").filter(p => p.trim()).length;
+    parts.push(`Prend ${count > 1 ? `${count} paramètres` : "un paramètre"} : ${params}.`);
+  }
+
+  const calls = detectCalls(body, name);
+  if (calls.length) parts.push(`Elle appelle ${calls.join(", ")}.`);
+
+  if (/\b(for|while)\b/.test(body)) parts.push("Elle contient une boucle.");
+  if (/\btry\b/.test(body)) parts.push("Elle gère des erreurs (try/except ou try/catch).");
+
+  const ret = detectReturn(body);
+  if (ret) parts.push(`Elle renvoie ${ret}.`);
+
+  if (!parts.length) parts.push("Relis le code ci-contre pour comprendre précisément son rôle.");
+
+  return parts.join(" ");
+}
+
+
 function extractFromCodeFile(path, content) {
   const lines = content.split(/\r?\n/);
   const items = [];
@@ -515,11 +580,12 @@ function extractFromCodeFile(path, content) {
     let m;
     let name = null;
     let kind = null;
+    let params = "";
     let explain = "";
     let code = "";
 
-    if ((m = line.match(/^\s*def\s+([A-Za-z_]\w*)\s*\(/))) {
-      name = m[1];
+    if ((m = line.match(/^\s*def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/))) {
+      name = m[1]; params = m[2].trim();
       if (name.startsWith("__") && name.endsWith("__") && name !== "__init__") return;
       kind = "fonction";
       explain = pythonDocstring(lines, idx);
@@ -528,14 +594,14 @@ function extractFromCodeFile(path, content) {
       name = m[1];
       kind = "classe";
       explain = pythonDocstring(lines, idx);
-      code = lines.slice(idx, Math.min(lines.length, idx + 20)).join("\n");
-    } else if ((m = line.match(/\bfunction\s+([A-Za-z_]\w*)\s*\(/))) {
-      name = m[1];
+      code = extractPythonBlock(lines, idx) || lines.slice(idx, Math.min(lines.length, idx + 25)).join("\n");
+    } else if ((m = line.match(/\bfunction\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/))) {
+      name = m[1]; params = m[2].trim();
       kind = "fonction";
       explain = leadingComment(lines, idx);
       code = extractBraceBlock(lines, idx);
     } else if ((m = line.match(/^\s*(?:public|private|protected)\s+(?:static\s+)?[\w<>[\],.]+\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*\{?\s*$/))) {
-      name = m[1];
+      name = m[1]; params = m[2].trim();
       if (["if", "for", "while", "switch", "catch", "return"].includes(name)) return;
       kind = "méthode";
       explain = leadingComment(lines, idx);
@@ -545,15 +611,223 @@ function extractFromCodeFile(path, content) {
     if (!name) return;
 
     const hasDoc = explain.length >= 8;
+    let answer;
+
+    if (kind === "classe") {
+      const methodNames = [...code.matchAll(/\bdef\s+([A-Za-z_]\w*)\s*\(/g)]
+        .map(x => x[1]).filter(n => n !== "__init__").slice(0, 6);
+
+      answer = hasDoc ? explain
+        : methodNames.length ? `Cette classe définit les méthodes : ${methodNames.join(", ")}.`
+        : "Relis le code ci-contre pour comprendre son rôle.";
+    } else {
+      answer = hasDoc ? explain : buildHeuristicSummary({ name, params, body: code });
+    }
+
+    const signature = params ? `\`${name}(${params})\`` : `\`${name}\``;
 
     items.push({
-      q: hasDoc ? `Que fait la ${kind} \`${name}\` dans ${path} ?` : `Que fait la ${kind} \`${name}\` dans ${path} ? (à compléter)`,
-      a: hasDoc ? explain.slice(0, 500) : "(à compléter : relis le code, puis modifie cette carte avec ta réponse)",
+      q: `Que fait la ${kind} ${signature} dans ${path} ?`,
+      a: answer.slice(0, 500),
       code: code.slice(0, 900),
-      hasDoc,
+      hasDoc: true,
       path
     });
   });
+
+  return items;
+}
+
+
+/* ==========================================================
+   Détection de concepts connus (outils, commandes, fonctions)
+   ----------------------------------------------------------
+   But : poser des questions « à quoi sert X ? » sur des outils
+   (nmap, hydra...) et des fonctions sensibles (os.system, eval...)
+   repérés dans le code, avec une vraie réponse de fond (pas juste
+   une description mécanique) et des mauvaises réponses toujours
+   disponibles (prises dans ce même dictionnaire) -> toujours un
+   QCM ou un vrai/faux possible.
+   ========================================================== */
+
+const CONCEPT_DB = [
+  ["nmap", "scanner les ports ouverts et les services actifs sur une machine ou un réseau."],
+  ["hydra", "tester un grand nombre de mots de passe (attaque par force brute) sur un service (SSH, FTP, un formulaire...)."],
+  ["john the ripper", "casser des mots de passe hachés en testant une wordlist ou toutes les combinaisons possibles."],
+  ["hashcat", "casser des mots de passe hachés en utilisant la puissance de calcul de la carte graphique."],
+  ["sqlmap", "détecter et exploiter automatiquement des injections SQL sur un site web."],
+  ["metasploit", "lancer des exploits connus contre des failles identifiées sur une machine cible."],
+  ["msfconsole", "ouvrir l'interface en ligne de commande de Metasploit pour lancer des exploits."],
+  ["wireshark", "capturer et analyser en détail le trafic réseau qui passe sur une interface."],
+  ["tcpdump", "capturer le trafic réseau en ligne de commande, souvent pour l'analyser ensuite."],
+  ["netcat", "ouvrir des connexions réseau brutes (TCP/UDP), souvent pour un reverse shell ou un bind shell."],
+  ["nikto", "scanner un serveur web à la recherche de fichiers ou de failles connues."],
+  ["gobuster", "découvrir des fichiers, dossiers ou sous-domaines cachés sur un site web par force brute."],
+  ["dirb", "découvrir des fichiers et dossiers cachés sur un serveur web par force brute."],
+  ["aircrack-ng", "casser la clé d'un réseau Wi-Fi protégé en WEP/WPA."],
+  ["burp suite", "intercepter et modifier les requêtes HTTP entre le navigateur et un site, pour tester ses failles."],
+  ["openssl", "créer des certificats, chiffrer des données ou tester une connexion TLS en ligne de commande."],
+  ["iptables", "définir les règles du pare-feu Linux (quel trafic réseau est autorisé ou bloqué)."],
+  ["fail2ban", "bannir automatiquement une adresse IP après plusieurs tentatives de connexion échouées."],
+  ["crontab", "lancer une tâche automatiquement à intervalles réguliers sur un système Linux."],
+  ["systemctl", "démarrer, arrêter ou vérifier l'état d'un service sur un système Linux (systemd)."],
+  ["chmod", "changer les droits d'accès (lecture/écriture/exécution) d'un fichier sous Linux."],
+  ["sudo", "exécuter une commande avec les droits d'administrateur (root) sous Linux."],
+  ["gdb", "déboguer un programme compilé pas à pas (points d'arrêt, inspection de la mémoire...)."],
+  ["strace", "lister les appels système faits par un programme pendant son exécution."],
+  ["valgrind", "détecter les fuites mémoire et les erreurs d'accès mémoire dans un programme C/C++."],
+  ["docker", "faire tourner une application dans un conteneur isolé, avec ses propres dépendances."],
+  ["venv", "créer un environnement Python isolé pour ne pas mélanger les dépendances d'un projet avec les autres."],
+  ["os.system", "exécuter une commande du système d'exploitation directement depuis le code (risque d'injection de commande)."],
+  ["subprocess", "lancer un autre programme depuis le code et récupérer ce qu'il affiche ou renvoie."],
+  ["socket", "ouvrir une connexion réseau brute (TCP/UDP) entre deux machines."],
+  ["requests", "envoyer des requêtes HTTP (GET, POST...) vers un site ou une API depuis du code Python."],
+  ["fetch(", "envoyer une requête HTTP depuis du JavaScript, souvent vers une API."],
+  ["hashlib", "calculer le hash (empreinte) d'une donnée, par exemple pour stocker un mot de passe."],
+  ["bcrypt", "hacher un mot de passe de façon sécurisée, avec un coût de calcul volontairement élevé."],
+  ["jwt", "créer ou vérifier un token signé (JSON Web Token) utilisé pour authentifier un utilisateur."],
+  ["pickle", "sérialiser des objets Python en octets (charger un pickle qui vient d'ailleurs est dangereux)."],
+  ["eval(", "exécuter une chaîne de caractères comme du code (très risqué si elle vient d'un utilisateur)."],
+  ["exec(", "exécuter dynamiquement du code à partir d'une chaîne de caractères."],
+  ["sqlite3", "stocker des données dans une petite base de données locale, dans un seul fichier."],
+  ["child_process", "lancer un autre programme ou une commande système depuis du code Node.js."],
+  ["password_hash", "hacher un mot de passe en PHP avant de le stocker en base de données."],
+  ["malloc", "réserver un bloc de mémoire de taille donnée en C (à libérer ensuite avec free)."],
+  ["fork(", "créer un nouveau processus, copie du processus courant, sous Linux/Unix."],
+  ["pthread", "créer et gérer des threads (exécutions parallèles) en C."]
+];
+
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+
+function conceptLabel(key) {
+  return key.endsWith("(") ? `${key})` : key;
+}
+
+
+function conceptRegex(key) {
+  const callLike = key.endsWith("(");
+  const body = callLike ? `${escapeRegex(key.slice(0, -1))}\\(` : escapeRegex(key);
+  const after = callLike ? "" : "(?![A-Za-z0-9_-])";
+
+  return new RegExp(`(?<![A-Za-z0-9_.-])${body}${after}`, "i");
+}
+
+
+// Mauvaises réponses d'un concept : les explications d'autres concepts (toujours
+// disponibles, de longueur comparable -> QCM/vrai-faux fiables même sans autre carte).
+function pickWrongConcepts(excludeKey, count) {
+  const others = CONCEPT_DB.filter(([key]) => key !== excludeKey).map(([, explain]) => explain);
+  return shuffle(others).slice(0, count);
+}
+
+
+// Repère les outils/commandes/fonctions connus utilisés dans le projet, et crée
+// une question « à quoi sert X ? » par concept trouvé (une seule fois par projet).
+function detectConcepts(project, limit = 18) {
+  const items = [];
+
+  for (const [key, explain] of CONCEPT_DB) {
+    if (items.length >= limit) break;
+
+    const re = conceptRegex(key);
+
+    for (const file of project.files) {
+      const match = re.exec(file.content);
+      if (!match) continue;
+
+      const lineStart = file.content.lastIndexOf("\n", match.index) + 1;
+      const lineEnd = file.content.indexOf("\n", match.index);
+      const line = file.content.slice(lineStart, lineEnd === -1 ? file.content.length : lineEnd).trim();
+
+      items.push({
+        q: `À quoi sert \`${conceptLabel(key)}\` ici ?`,
+        a: explain,
+        code: line.slice(0, 200),
+        hasDoc: true,
+        path: file.path,
+        wrongs: pickWrongConcepts(key, 3)
+      });
+
+      break;
+    }
+  }
+
+  return items;
+}
+
+
+/* ---------- Vue d'ensemble du projet (point d'entrée, libs, structure) ---------- */
+
+const ENTRY_POINT_NAMES = ["main.py", "app.py", "manage.py", "index.js", "main.js", "server.js", "Main.java", "main.c", "main.cpp"];
+
+function detectEntryPoint(project) {
+  for (const file of project.files) {
+    if (ENTRY_POINT_NAMES.includes(file.path.split("/").pop())) return file.path;
+  }
+  return null;
+}
+
+
+function detectImports(project) {
+  const found = new Set();
+
+  for (const file of project.files) {
+    const content = file.content;
+    let m;
+
+    const rePy1 = /^\s*import\s+([A-Za-z_][\w.]*)/gm;
+    while ((m = rePy1.exec(content))) found.add(m[1].split(".")[0]);
+
+    const rePy2 = /^\s*from\s+([A-Za-z_][\w.]*)\s+import/gm;
+    while ((m = rePy2.exec(content))) found.add(m[1].split(".")[0]);
+
+    const reRequire = /\brequire\(\s*["']([^"'.][^"']*)["']\s*\)/g;
+    while ((m = reRequire.exec(content))) found.add(m[1].split("/")[0]);
+
+    const reEsImport = /\bimport\s+(?:[\w*{}\s,]+from\s+)?["']([^"'.][^"']*)["']/g;
+    while ((m = reEsImport.exec(content))) found.add(m[1].split("/")[0]);
+
+    const reJava = /^\s*import\s+([\w.]+)\s*;/gm;
+    while ((m = reJava.exec(content))) found.add(m[1]);
+  }
+
+  return [...found].slice(0, 15);
+}
+
+
+function extractProjectOverview(project) {
+  const items = [];
+
+  const entry = detectEntryPoint(project);
+  if (entry) {
+    items.push({
+      q: "Quel est le point d'entrée de ce projet ?",
+      a: `Le programme démarre dans \`${entry}\`.`,
+      code: "", hasDoc: true, path: entry
+    });
+  }
+
+  const libs = detectImports(project);
+  if (libs.length) {
+    items.push({
+      q: "Quelles bibliothèques/technologies sont utilisées dans ce projet ?",
+      a: `Ce projet importe : ${libs.join(", ")}.`,
+      code: "", hasDoc: true, path: "(vue d'ensemble)"
+    });
+  }
+
+  if (project.files.length > 1) {
+    const list = project.files.map(f => f.path).slice(0, 25).join(", ");
+    items.push({
+      q: "Quelle est la structure (les fichiers) de ce projet ?",
+      a: `Fichiers principaux : ${list}${project.files.length > 25 ? ", ..." : ""}.`,
+      code: "", hasDoc: true, path: "(vue d'ensemble)"
+    });
+  }
 
   return items;
 }
@@ -564,136 +838,32 @@ function generateCardsForProject(project) {
   const deck = S.learn.decks[deckKey];
   const existingQs = new Set(deck.cards.map(card => card.q));
 
-  const good = [];
-  const stubs = [];
+  const picked = [...extractProjectOverview(project), ...detectConcepts(project)];
 
   for (const file of project.files) {
     const items = /\.md$/i.test(file.path) ? extractFromMarkdown(file.path, file.content)
       : /\.sql$/i.test(file.path) ? extractFromSql(file.path, file.content)
       : extractFromCodeFile(file.path, file.content);
 
-    for (const item of items) (item.hasDoc ? good : stubs).push(item);
+    picked.push(...items);
   }
 
-  const picked = [...good.slice(0, 30), ...stubs.slice(0, 15)];
   let added = 0;
   let skipped = 0;
 
-  for (const item of picked) {
+  for (const item of picked.slice(0, 80)) {
     if (existingQs.has(item.q)) { skipped++; continue; }
 
-    deck.cards.push(makeCard({
-      q: item.q, a: item.a, code: item.code, tag: item.path,
-      note: item.hasDoc ? "Extrait automatiquement du projet." : "Carte générée automatiquement : relis le code puis complète-la avec ta propre explication."
-    }));
-
+    deck.cards.push(makeCard({ q: item.q, a: item.a, code: item.code, tag: item.path, note: "Extrait automatiquement du projet.", wrongs: item.wrongs || [] }));
     existingQs.add(item.q);
     added++;
   }
 
   save();
 
-  if (!added && !skipped) toast("Rien à extraire (pas assez de fonctions, classes ou sections détectées dans ce projet)");
+  if (!added && !skipped) toast("Rien à extraire (pas assez de contenu détecté dans ce projet)");
   else toast(`${added} carte(s) générée(s) automatiquement${skipped ? `, ${skipped} déjà présente(s)` : ""}`);
 
-  refresh();
-}
-
-
-/* ==========================================================
-   Génération par IA locale (Ollama)
-   ----------------------------------------------------------
-   Ollama fait tourner un modèle d'IA directement sur ton PC
-   (gratuit, rien n'est envoyé sur internet). Il faut l'avoir
-   installé et lancé, et renseigner son adresse + le nom du
-   modèle dans les réglages ci-dessous.
-   ========================================================== */
-
-async function generateCardsWithOllama(project) {
-  const cfg = S.code.ollama;
-
-  if (!cfg.url || !cfg.model) {
-    toast("Renseigne l'adresse et le modèle Ollama dans les réglages");
-    return;
-  }
-
-  const filesText = project.files
-    .slice(0, 20)
-    .map(file => `--- ${file.path} ---\n${file.content.slice(0, 4000)}`)
-    .join("\n\n")
-    .slice(0, 12000);
-
-  if (!filesText.trim()) {
-    toast("Ce projet n'a aucun contenu à envoyer à l'IA");
-    return;
-  }
-
-  const prompt = `Tu aides un étudiant à préparer l'oral de défense d'un projet informatique (Epitech).
-Voici des fichiers de son projet :
-
-${filesText}
-
-Identifie les éléments les plus importants à savoir expliquer à l'oral : objectif du projet, fonctionnement général, fonctions ou classes clés, choix techniques, architecture.
-Réponds UNIQUEMENT avec un tableau JSON, sans aucun texte autour ni balise markdown, de cette forme exacte :
-[{"question": "...", "answer": "..."}]
-Entre 8 et 15 questions-réponses, en français, claires et précises.`;
-
-  toast("Génération en cours avec Ollama...");
-
-  let data;
-
-  try {
-    const response = await fetch(`${cfg.url.replace(/\/$/, "")}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: cfg.model, prompt, stream: false, format: "json" })
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    data = await response.json();
-  } catch (error) {
-    notify({
-      title: "OLLAMA INJOIGNABLE",
-      kind: "warn",
-      lines: [
-        "Vérifie qu'Ollama est lancé sur ton PC (icône dans la barre des tâches),",
-        `que l'adresse est correcte (${cfg.url}),`,
-        "et que la variable OLLAMA_ORIGINS autorise ce site."
-      ]
-    });
-    return;
-  }
-
-  let items;
-
-  try {
-    items = JSON.parse(data.response);
-    if (!Array.isArray(items)) throw new Error("format inattendu");
-  } catch (error) {
-    notify({ title: "RÉPONSE ILLISIBLE", kind: "warn", lines: ["Le modèle n'a pas renvoyé un JSON valide. Réessaie, ou change de modèle (ex : llama3.2)."] });
-    return;
-  }
-
-  const deckKey = ensureProjectDeck(project);
-  const deck = S.learn.decks[deckKey];
-  const existingQs = new Set(deck.cards.map(card => card.q));
-  let added = 0;
-  let skipped = 0;
-
-  for (const item of items.slice(0, 20)) {
-    const q = String(item?.question || "").trim();
-    const a = String(item?.answer || "").trim();
-
-    if (!q || !a) continue;
-    if (existingQs.has(q)) { skipped++; continue; }
-
-    deck.cards.push(makeCard({ q, a: a.slice(0, 600), tag: project.name, note: "Généré par IA locale (Ollama)." }));
-    existingQs.add(q);
-    added++;
-  }
-
-  save();
-  toast(added ? `${added} carte(s) générée(s) par l'IA${skipped ? `, ${skipped} déjà présente(s)` : ""}` : "Aucune carte valide générée, réessaie");
   refresh();
 }
 
@@ -715,6 +885,7 @@ function renderCode(root) {
       <span class="win-t">Mon code</span>
       <p class="muted">Importe les fichiers d'un projet (Epitech, stage, perso) pour les relire, et crée des cartes pour savoir bien les expliquer à l'oral.</p>
 
+      ${projects.length ? `<p class="muted" style="font-size:13px;margin-bottom:6px">Tes projets (${projects.length}) — chacun a ses propres fichiers et ses propres cartes de révision :</p>` : ""}
       <div class="code-projects">
         ${projects.map(p => `
           <button type="button" class="pill-btn ${p.id === project?.id ? "sel" : ""}" data-act="sel-project" data-id="${p.id}">${esc(p.name)}</button>`).join("")}
@@ -724,19 +895,9 @@ function renderCode(root) {
 
       ${project ? `
         <div class="row wrap" style="margin-bottom:10px">
-          <button class="btn primary small" type="button" data-act="auto-cards">⚡ Extraction automatique (gratuite)</button>
-          <button class="btn primary small" type="button" data-act="ai-cards">🤖 Générer avec l'IA locale (Ollama)</button>
+          <button class="btn primary small" type="button" data-act="auto-cards">⚡ Générer les cartes de ce projet</button>
         </div>
-        <p class="muted" style="font-size:13px;margin-bottom:10px">Extraction : vraie réponse quand un commentaire/docstring existe, sinon une carte « à compléter ». IA locale : demande à un modèle tournant sur ton PC via Ollama (rien n'est envoyé sur internet).</p>
-
-        <details class="ollama-settings">
-          <summary>Réglages Ollama</summary>
-          <form class="row wrap" data-form="ollama">
-            <label>Adresse<input name="url" value="${esc(S.code.ollama.url)}"></label>
-            <label>Modèle<input name="model" value="${esc(S.code.ollama.model)}" placeholder="llama3.2"></label>
-            <button class="btn small" type="submit">Enregistrer</button>
-          </form>
-        </details>` : ""}
+        <p class="muted" style="font-size:13px;margin-bottom:10px">Lit tous les fichiers du projet (point d'entrée, bibliothèques, fonctions, classes, sections des .md, tables SQL, outils/commandes repérés comme <code class="inline-code">nmap</code> ou <code class="inline-code">os.system</code>...) et crée des cartes dessus. En Apprendre, les cartes de ce projet ne posent que des QCM ou du vrai/faux : pas de réponse à taper, juste comprendre le rôle de chaque chose.</p>` : ""}
 
       ${project ? `
         <div class="code-layout">
@@ -816,7 +977,6 @@ function renderCode(root) {
     if (!project) return;
 
     if (action === "auto-cards") { Sound.play("click"); generateCardsForProject(project); }
-    if (action === "ai-cards") { Sound.play("click"); generateCardsWithOllama(project); }
 
     if (action === "sel-file") selectFile(project, target.dataset.id);
     if (action === "del-file") askConfirm("Supprimer ce fichier ?", () => deleteFile(project, target.dataset.id));
@@ -824,19 +984,6 @@ function renderCode(root) {
     if (action === "import-more") importMoreInput.click();
     if (action === "make-card") makeCardForProject(project);
     if (action === "go-deck") goToProjectDeck(project);
-  };
-
-  root.onsubmit = event => {
-    const form = event.target.closest('form[data-form="ollama"]');
-    if (!form) return;
-
-    event.preventDefault();
-    const data = formData(form);
-
-    S.code.ollama.url = data.url.trim() || "http://localhost:11434";
-    S.code.ollama.model = data.model.trim() || "llama3.2";
-    save();
-    toast("Réglages enregistrés");
   };
 
   root.oninput = event => {
