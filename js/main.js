@@ -167,6 +167,8 @@ function init() {
   onRoute();
   welcomeFirstTime();
   startAlertEngine();
+  if (typeof syncInit === "function") syncInit();
+  if (typeof startSyncPolling === "function") startSyncPolling();
 
   // Une minute : on met à jour la ligne "maintenant" du planning et l'en-tête
   // (seulement sur les pages sans saisie, pour ne jamais effacer un texte en cours)

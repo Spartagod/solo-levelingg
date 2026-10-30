@@ -214,3 +214,26 @@ async function syncNow() {
   await syncInit();
   if (typeof refresh === "function") refresh();
 }
+
+
+// Vérification automatique en continu : tant que l'appli reste ouverte,
+// on va voir toutes les 30s si un autre appareil a poussé du nouveau,
+// sans attendre une réouverture ou un clic sur "Synchroniser maintenant".
+// On n'y touche pas si l'utilisateur est en train de taper ou qu'une
+// fenêtre est ouverte, pour ne jamais lui écraser une saisie en cours.
+let syncPollTimer = null;
+
+function startSyncPolling() {
+  if (syncPollTimer) return;
+
+  syncPollTimer = setInterval(() => {
+    const cfg = getSyncConfig();
+    if (!cfg || !cfg.token || !cfg.gistId) return;
+
+    const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "");
+    const modalOpen = document.getElementById("modal")?.innerHTML;
+    if (typing || modalOpen) return;
+
+    syncInit();
+  }, 30000);
+}
