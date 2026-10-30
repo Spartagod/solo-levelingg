@@ -10,7 +10,7 @@
    ========================================================== */
 
 
-const CACHE_NAME = "solo-leveling-v10";
+const CACHE_NAME = "solo-leveling-v11";
 
 const FILES = [
   "./",
