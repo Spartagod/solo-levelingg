@@ -13,7 +13,7 @@ const VIEWS = {
   alertes:  { render: renderAlerts },
   projets:  { render: renderProjects },
   sport:    { render: renderSport },
-  revisions: { render: renderRevisions },
+  apprendre: { render: renderLearn },
   studio:   { render: renderStudio },
   reglages: { render: renderSettings }
 };
@@ -26,7 +26,7 @@ const PAGES = {
   alertes:   ["Alertes",   "Le Système te prévient avant qu'il soit trop tard"],
   projets:   ["Projets",   "Découpe, planifie, termine"],
   sport:     ["Sport",     "La Force se construit en salle"],
-  revisions: ["Révisions", "Importe tes projets, génère des cartes, et révise jusqu'au sans-faute"],
+  apprendre: ["Apprendre", "Une partie par sujet chaque jour, jusqu'au sans-faute"],
   studio:    ["Studio",    "Crée tes présentations, présente-les ou exporte-les en PowerPoint"],
   reglages:  ["Réglages",  "Règle le Système à ta façon"]
 };
