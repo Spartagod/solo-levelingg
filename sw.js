@@ -10,7 +10,7 @@
    ========================================================== */
 
 
-const CACHE_NAME = "solo-leveling-v13";
+const CACHE_NAME = "solo-leveling-v14";
 
 const FILES = [
   "./",
@@ -43,6 +43,7 @@ const FILES = [
   "./js/code.js",
   "./js/learn-engine.js",
   "./js/learn.js",
+  "./js/revisions.js",
   "./js/studio-data.js",
   "./js/studio-render.js",
   "./js/studio-export.js",
