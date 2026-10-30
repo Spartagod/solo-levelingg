@@ -1,6 +1,0 @@
-Mets ici ton son de notification : notification.mp3
-(par exemple "system-notifikason-solo-leveling.mp3" renommé en notification.mp3).
-
-Il est joué pour les notifications et les montées de niveau.
-Sans fichier, le site utilise un son synthétique.
-Pour changer le nom du fichier : CONFIG.soundFile dans js/data.js
