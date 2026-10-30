@@ -32,6 +32,12 @@ function renderSettings(root) {
     </section>
 
     <section class="win">
+      <span class="win-t">Planning</span>
+      <p class="muted">Ton planning de départ est dans le fichier <code class="inline-code">js/data.js</code> (variable <code class="inline-code">DEFAULT_EVENTS</code>) : ouvre-le avec n'importe quel éditeur de texte pour voir et modifier tes créneaux (titre, catégorie, heure de début/fin, jours), puis reviens ici et recharge.</p>
+      <button class="btn" type="button" data-act="reload-planning">Recharger le planning depuis data.js</button>
+    </section>
+
+    <section class="win">
       <span class="win-t">Sauvegarde</span>
       <p class="muted">Tes données sont gardées dans ce navigateur. Copie la sauvegarde pour la garder ou la transférer sur un autre ordinateur.</p>
       <textarea id="backup" rows="5" class="mono" aria-label="Sauvegarde JSON"></textarea>
@@ -62,6 +68,14 @@ function renderSettings(root) {
       renderSettings(root);
     }
     if (action === "sound-test") Sound.play("notify");
+    if (action === "reload-planning") {
+      askConfirm("Remplacer ton planning actuel par celui de js/data.js ?", () => {
+        S.events = structuredClone(DEFAULT_EVENTS);
+        save();
+        refresh();
+        toast(`${S.events.length} créneau(x) rechargé(s) depuis data.js`);
+      }, "Recharger");
+    }
     if (action === "export") area.value = exportState();
     if (action === "copy") copyText(area.value || exportState(), area);
     if (action === "import") {
