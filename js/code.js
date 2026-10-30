@@ -1,13 +1,15 @@
 /* ==========================================================
-   CODE.JS : page "Code" — importer les fichiers d'un projet
-   (Epitech, stage...) pour les relire et créer des cartes dessus,
-   afin de bien savoir les expliquer le jour d'une défense.
+   CODE.JS : onglet "Projets" de la page Révisions — importer les
+   fichiers d'un projet (Epitech, stage...) pour les relire et
+   créer des cartes dessus, afin de bien savoir les expliquer le
+   jour d'une défense.
    ----------------------------------------------------------
    - Un "projet" = un dossier importé (ou une page vide), avec
      plusieurs fichiers.
-   - Chaque projet a un "sujet" lié dans Apprendre (js/learn.js) :
-     les cartes qu'on crée ici s'y ajoutent et se révisent par
-     répétition espacée, comme n'importe quel autre sujet.
+   - Chaque projet a un "sujet" lié (voir js/learn.js) : les cartes
+     qu'on crée ici s'y ajoutent et se révisent par répétition
+     espacée dans l'onglet "Paquets", comme n'importe quel autre
+     sujet. L'assemblage des onglets est dans js/revisions.js.
    - highlightCode / renderMarkdown : voir le haut de ce fichier.
    ========================================================== */
 
@@ -352,8 +354,8 @@ function goToProjectDeck(project) {
 
   save();
   learnDeckSel = deckKey;
-  learnTab = "decks";
-  go("apprendre");
+  revTab = "decks";
+  refresh();
 }
 
 
@@ -869,10 +871,10 @@ function generateCardsForProject(project) {
 
 
 /* ==========================================================
-   VUE : page "Code"
+   VUE : onglet "Projets" de la page Révisions (voir js/revisions.js)
    ========================================================== */
 
-function renderCode(root) {
+function renderCodeTab(root) {
   const projects = S.code.projects;
 
   if (!S.code.activeProjectId && projects.length) S.code.activeProjectId = projects[0].id;

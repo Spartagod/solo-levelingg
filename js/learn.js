@@ -1,7 +1,6 @@
 /* ==========================================================
-   LEARN.JS : la page "Apprendre" (séance de 20 minutes)
-   ----------------------------------------------------------
-   Trois onglets :
+   LEARN.JS : la logique et les onglets "Aujourd'hui" / "Paquets" /
+   "Stats" de la page Révisions (assemblés dans js/revisions.js) :
    - Aujourd'hui : lancer la séance du jour
    - Paquets     : voir, ajouter, importer des cartes, créer un sujet
    - Stats       : prévisions, mémorisation, score TOEIC
@@ -9,7 +8,6 @@
    ========================================================== */
 
 
-let learnTab = "today";
 let learnDeckSel = "";            // paquet affiché dans l'onglet Paquets
 let learnSession = null;          // partie en cours (ou null)
 let learnTimer = null;
@@ -354,7 +352,7 @@ function finishPart() {
     sound: "levelup"
   });
 
-  learnTab = "today";
+  revTab = "today";
   refresh();
 }
 
@@ -369,7 +367,7 @@ function endLearn() {
 
   if (s && s.n > 0) toast(`Partie en pause : ${s.ok}/${s.n} justes. Tu pourras la reprendre.`);
 
-  learnTab = "today";
+  revTab = "today";
   refresh();
 }
 
@@ -379,7 +377,7 @@ function endLearn() {
    ========================================================== */
 
 document.addEventListener("keydown", event => {
-  if (!learnSession || currentView !== "apprendre" || $("#modal").innerHTML || event.repeat) return;
+  if (!learnSession || currentView !== "revisions" || $("#modal").innerHTML || event.repeat) return;
   if (event.ctrlKey || event.metaKey || event.altKey) return;
 
   touchLearn();
@@ -424,30 +422,6 @@ function advanceLearn() {
 /* ==========================================================
    3. Dessin de la séance
    ========================================================== */
-
-function renderLearn(root) {
-  if (learnSession) {
-    renderLesson(root);
-    return;
-  }
-
-  const tabs = [["today", "Aujourd'hui"], ["decks", "Paquets"], ["stats", "Stats"]]
-    .map(([key, label]) => `<button type="button" class="tab ${learnTab === key ? "sel" : ""}" data-act="tab" data-tab="${key}">${label}</button>`)
-    .join("");
-
-  const body = learnTab === "decks" ? decksTab() : learnTab === "stats" ? statsTab() : todayTab();
-
-  root.innerHTML = `
-    <div class="tabs learn-tabs">${tabs}</div>
-    ${body}`;
-
-  root.onclick = event => learnClick(event, root);
-  root.onsubmit = event => learnSubmit(event);
-
-  const search = $("#cardSearch", root);
-  if (search) search.addEventListener("input", () => filterCards(root));
-}
-
 
 /* ---------- Dessin d'une question ---------- */
 
@@ -890,7 +864,6 @@ function learnClick(event, root) {
   }
 
   // ----- Hors séance -----
-  if (act === "tab") { learnTab = target.dataset.tab; Sound.play("click"); refresh(); }
   if (act === "start") startLearn(target.dataset.deck);
   if (act === "bonus") startLearn(target.dataset.deck, true);
 

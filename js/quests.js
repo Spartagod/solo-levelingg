@@ -174,7 +174,7 @@ function renderQuests(root) {
     if (action === "add") openQuestForm();
     if (action === "done") { Sound.play("click"); completeQuest(id); refresh(); }
     if (action === "gym") go("sport");
-    if (action === "study") go("apprendre");
+    if (action === "study") { revTab = "today"; go("revisions"); }
     if (action === "del") {
       askConfirm("Supprimer cette quête ?", () => {
         S.quests.templates = S.quests.templates.filter(item => item.id !== id);
