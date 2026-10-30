@@ -5,6 +5,7 @@
 
 function renderSettings(root) {
   const s = S.settings;
+  const syncCfg = getSyncConfig();
 
   root.innerHTML = `
     <section class="win">
@@ -29,6 +30,29 @@ function renderSettings(root) {
       </div>
       <label class="inline-num">Rappel avant un bloc (minutes)<input id="remindMin" type="number" min="1" max="120" value="${s.remindMin}"></label>
       <div class="row"><button class="btn" type="button" data-act="sound-test">Tester le son</button></div>
+    </section>
+
+    <section class="win">
+      <span class="win-t">Planning</span>
+      <p class="muted">Ton planning de départ est dans le fichier <code class="inline-code">js/data.js</code> (variable <code class="inline-code">DEFAULT_EVENTS</code>) : ouvre-le avec n'importe quel éditeur de texte pour voir et modifier tes créneaux (titre, catégorie, heure de début/fin, jours), puis reviens ici et recharge.</p>
+      <button class="btn" type="button" data-act="reload-planning">Recharger le planning depuis data.js</button>
+    </section>
+
+    <section class="win">
+      <span class="win-t">Synchronisation entre appareils</span>
+      <p class="muted">Optionnel : avec ton compte GitHub (pas de nouveau service à créer), tes données se synchronisent automatiquement entre tous les appareils connectés au même Gist. Statut : ${esc(syncStatusLabel())}</p>
+      <p class="muted">Sur le <strong>premier</strong> appareil : colle juste ton jeton GitHub, laisse "ID du Gist" vide, Enregistrer — un Gist privé est créé et son ID s'affiche. Sur les appareils <strong>suivants</strong> : colle le même jeton (ou un autre, même compte) ET cet ID.</p>
+      <form class="form" id="syncForm">
+        <div class="row">
+          <label>Jeton d'accès GitHub (scope "gist")<input name="token" value="${esc(syncCfg?.token || "")}" placeholder="ghp_..."></label>
+          <label>ID du Gist (vide la 1ère fois)<input name="gistId" value="${esc(syncCfg?.gistId || "")}" placeholder="laisser vide pour le créer"></label>
+        </div>
+        <div class="row end">
+          ${syncCfg ? `<button class="btn danger" type="button" data-act="sync-off">Désactiver</button>` : ""}
+          <button class="btn" type="button" data-act="sync-now" ${syncCfg?.gistId ? "" : "disabled"}>Synchroniser maintenant</button>
+          <button class="btn primary" type="submit">Enregistrer${syncCfg?.gistId ? "" : " et créer"}</button>
+        </div>
+      </form>
     </section>
 
     <section class="win">
@@ -62,6 +86,25 @@ function renderSettings(root) {
       renderSettings(root);
     }
     if (action === "sound-test") Sound.play("notify");
+    if (action === "reload-planning") {
+      askConfirm("Remplacer ton planning actuel par celui de js/data.js ?", () => {
+        S.events = structuredClone(DEFAULT_EVENTS);
+        save();
+        refresh();
+        toast(`${S.events.length} créneau(x) rechargé(s) depuis data.js`);
+      }, "Recharger");
+    }
+    if (action === "sync-off") {
+      askConfirm("Désactiver la synchronisation sur cet appareil ? Tes données restent ici, elles ne s'enverront simplement plus.", () => {
+        setSyncConfig(null);
+        toast("Synchronisation désactivée");
+        refresh();
+      }, "Désactiver");
+    }
+    if (action === "sync-now") {
+      toast("Synchronisation en cours...");
+      syncNow().then(() => { refresh(); });
+    }
     if (action === "export") area.value = exportState();
     if (action === "copy") copyText(area.value || exportState(), area);
     if (action === "import") {
@@ -84,16 +127,38 @@ function renderSettings(root) {
 
   root.onsubmit = event => {
     event.preventDefault();
-    if (event.target.id !== "playerForm") return;
 
-    const data = formData(event.target);
+    if (event.target.id === "playerForm") {
+      const data = formData(event.target);
 
-    S.player.name = data.name.trim() || S.player.name;
-    S.player.title = data.title.trim();
-    S.gym.weeklyGoal = clamp(Number(data.goal) || 3, 1, 14);
-    save();
-    toast("Enregistré");
-    refresh();
+      S.player.name = data.name.trim() || S.player.name;
+      S.player.title = data.title.trim();
+      S.gym.weeklyGoal = clamp(Number(data.goal) || 3, 1, 14);
+      save();
+      toast("Enregistré");
+      refresh();
+      return;
+    }
+
+    if (event.target.id === "syncForm") {
+      const data = formData(event.target);
+      const token = data.token.trim();
+      const gistId = data.gistId.trim();
+
+      if (!token) {
+        toast("Colle ton jeton GitHub pour activer la synchronisation");
+        return;
+      }
+
+      toast(gistId ? "Connexion en cours..." : "Création du Gist en cours...");
+
+      syncConnect({ token, gistId }).then(result => {
+        if (result.created) {
+          notify({ title: "GIST CRÉÉ", lines: [`ID à copier sur tes autres appareils :`, result.gistId] });
+        }
+        refresh();
+      });
+    }
   };
 
   $("#remindMin", root).addEventListener("change", event => {

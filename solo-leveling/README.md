@@ -27,27 +27,13 @@ Tes données (XP, quêtes, planning...) sont gardées dans le navigateur.
 Elles restent sur cet ordinateur, dans ce navigateur. Pour les transférer :
 page Réglages -> Générer la sauvegarde -> Copier, puis Restaurer ailleurs.
 
-## Générer des cartes avec une IA locale (Ollama)
+## Créer un sujet de révision sur un de tes projets (page Apprendre)
 
-Sur la page **Code**, le bouton **🤖 Générer avec l'IA locale** utilise
-[Ollama](https://ollama.com) (gratuit, tourne sur ton PC, rien n'est envoyé
-sur internet) pour créer de vraies cartes de révision sur un projet importé.
-
-1. Installe Ollama (ollama.com), puis ouvre un terminal et tape :
-   `ollama pull llama3.2` (une seule fois).
-2. Ollama tourne automatiquement en arrière-plan une fois installé.
-3. Autorise ce site à lui parler : crée une variable d'environnement
-   Windows `OLLAMA_ORIGINS` avec la valeur `*`
-   (Paramètres -> Système -> Informations système -> Paramètres système
-   avancés -> Variables d'environnement -> Nouvelle), puis redémarre le PC
-   (ou au moins Ollama).
-4. Dans la page Code, ouvre "Réglages Ollama" si besoin pour vérifier
-   l'adresse (`http://localhost:11434` par défaut) et le modèle
-   (`llama3.2` par défaut).
-
-Sans Ollama, ou si tu préfères ne rien installer, le bouton
-**⚡ Extraction automatique** reste disponible : il ne devine rien, mais il
-est gratuit, instantané, et reprend tes commentaires/docstrings existants.
+Dans **Apprendre -> Paquets -> + Nouveau sujet**, crée un sujet (ex : "Projet
+Tech1"), coche **QCM / Vrai-ou-faux uniquement** si tu ne veux jamais avoir à
+taper de réponse, puis ajoute tes cartes toi-même avec **+ Ajouter une
+carte** (question, réponse, et des mauvaises réponses pour les QCM si tu
+veux). Ce sujet se révise ensuite comme les autres, par répétition espacée.
 
 ## Les pages
 
@@ -59,8 +45,7 @@ est gratuit, instantané, et reprend tes commentaires/docstrings existants.
 | Alertes   | Alertes à heure fixe, échéances, notifications du navigateur           |
 | Projets   | Projets, deadlines, tâches avec durée (rapportent de l'XP)             |
 | Sport     | Bouton "Valider la séance", série, carte des 12 dernières semaines     |
-| Code      | Importe les fichiers d'un projet (défense Epitech, stage...), relis-les avec coloration, crée des cartes pour savoir bien les expliquer à l'oral |
-| Apprendre | Une partie de 15 cartes par sujet et par jour (manches jusqu'au sans-faute), répétition espacée, questions variées : culture générale, cybersécurité, outils Kali, Python, anglais, tes propres sujets |
+| Apprendre | Une partie de 15 cartes par sujet et par jour (manches jusqu'au sans-faute), répétition espacée, questions variées : culture générale, cybersécurité, outils Kali, Python, anglais, et tes propres sujets (un par projet, par exemple, en QCM/Vrai-ou-faux uniquement si tu veux) |
 | Studio    | Présentations façon Canva : 11 mises en page, 6 thèmes, mode présentation, export PowerPoint (.pptx) |
 | Réglages  | Nom, sons, pénalités, rappels, sauvegarde, réinitialisation            |
 
@@ -94,7 +79,6 @@ est gratuit, instantané, et reprend tes commentaires/docstrings existants.
     │   ├── alerts.js       Page Alertes + moteur de rappels
     │   ├── projects.js     Page Projets
     │   ├── sport.js        Page Sport
-    │   ├── code.js         Page Code (importer un projet, cartes pour les défenses)
     │   ├── learn-engine.js Cerveau de l'apprentissage (SM-2, formats de questions)
 │   ├── learn.js        Page Apprendre
 │   ├── studio-*.js     Studio : données/thèmes, rendu, export .pptx, éditeur
