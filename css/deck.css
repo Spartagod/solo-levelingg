@@ -1,0 +1,370 @@
+/* ==========================================================
+   DECK.CSS : le Studio (diapositives, éditeur, présentation)
+   ----------------------------------------------------------
+   Une diapositive fait toujours 1280 x 720 pixels ; on la réduit
+   avec un zoom (transform: scale) pour l'adapter à l'écran.
+   ========================================================== */
+
+
+/* ---------- La diapositive elle-même ---------- */
+
+.sl {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.sh {
+  position: absolute;
+}
+
+.sh.tx {
+  display: flex;
+}
+
+.tx-in,
+.bl-wrap {
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.bl {
+  position: relative;
+  margin: 0;
+}
+
+.bl i {
+  position: absolute;
+  left: 0;
+}
+
+.scaled {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+}
+
+.scale-in {
+  width: 1280px;
+  height: 720px;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+
+/* ---------- Liste des présentations ---------- */
+
+.deck-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 22px;
+  margin-top: 16px;
+}
+
+.deck-tile {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  background: rgba(63, 200, 255, 0.03);
+}
+
+.deck-thumb {
+  padding: 0;
+  border: 1px solid var(--line);
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.deck-thumb:hover {
+  box-shadow: var(--glow);
+  transform: translateY(-2px);
+}
+
+.deck-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.deck-meta strong {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+
+
+/* ---------- Éditeur ---------- */
+
+.studio {
+  display: grid;
+  gap: 14px;
+}
+
+.st-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.st-title {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.st-top select {
+  width: auto;
+}
+
+.st-body {
+  display: grid;
+  grid-template-columns: 182px minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.st-rail {
+  display: grid;
+  gap: 10px;
+  max-height: calc(100vh - 220px);
+  padding-right: 4px;
+  overflow-y: auto;
+}
+
+.rail-item {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 3px;
+  border: 1px solid transparent;
+  cursor: grab;
+}
+
+.rail-item button {
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.rail-item.sel {
+  border-color: var(--blue);
+  box-shadow: var(--glow);
+}
+
+.rail-item.over {
+  border-color: var(--gold);
+}
+
+.rail-n {
+  min-width: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.st-center {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.st-stage {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.st-stage .scaled {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.st-panel {
+  display: grid;
+  gap: 12px;
+  max-height: calc(100vh - 220px);
+  padding: 14px;
+  overflow-y: auto;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+
+.st-panel label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.img-field {
+  display: grid;
+  gap: 6px;
+}
+
+.img-prev {
+  width: 100%;
+  max-height: 120px;
+  object-fit: cover;
+  border: 1px solid var(--line-soft);
+}
+
+.file-btn {
+  display: inline-block;
+  cursor: pointer;
+}
+
+
+/* ---------- Choix d'une mise en page ---------- */
+
+.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.layout-opt {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 8px;
+  border: 1px solid var(--line-soft);
+  background: none;
+  cursor: pointer;
+}
+
+.layout-opt:hover {
+  border-color: var(--blue);
+  box-shadow: var(--glow);
+}
+
+.layout-opt .scaled {
+  max-width: 100%;
+}
+
+
+/* ---------- Mode présentation ---------- */
+
+#present {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: #000;
+  cursor: pointer;
+}
+
+.pr-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding-bottom: 0;
+}
+
+#present .scaled {
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pr-progress {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pr-progress i {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+  transition: width 0.3s;
+}
+
+.pr-hint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 8px 14px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14px;
+  opacity: 0.25;
+  transition: opacity 0.2s;
+}
+
+#present:hover .pr-hint {
+  opacity: 1;
+}
+
+.pr-hint button {
+  padding: 3px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+}
+
+.pr-notes {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 40px;
+  max-height: 140px;
+  padding: 14px 24px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.88);
+  border-top: 1px solid var(--line);
+  color: #e6f4ff;
+  font-size: 20px;
+  cursor: default;
+}
+
+
+/* ---------- Écrans étroits ---------- */
+
+@media (max-width: 1080px) {
+  .st-body {
+    grid-template-columns: 1fr;
+  }
+
+  .st-center {
+    order: 1;
+  }
+
+  .st-rail {
+    order: 2;
+    display: flex;
+    max-height: none;
+    padding: 0 0 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .st-rail .btn {
+    flex: none;
+    align-self: center;
+  }
+
+  .st-panel {
+    order: 3;
+    max-height: none;
+  }
+}
