@@ -95,7 +95,45 @@ const DEFAULT_QUESTS = [
 
 /* ---------- Emploi du temps de départ (modifiable dans Planning) ---------- */
 const DEFAULT_EVENTS = [
-  { id: "e-gym", title: "Salle de sport", cat: "sport", start: "19:00", end: "20:30", days: [1, 3, 5], note: "Exemple : change les jours et l'heure dans Planning" }
+  // Lundi à vendredi
+  { id: "e-reveil",     title: "Réveil / préparation",                cat: "perso", start: "08:45", end: "09:30", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-epitech1",   title: "Epitech",                              cat: "cours", start: "09:30", end: "12:30", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-dej",        title: "Pause déjeuner",                       cat: "perso", start: "12:30", end: "13:30", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-anglais",    title: "Anglais (Apprendre)",                  cat: "etude", start: "13:30", end: "13:40", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-culture",    title: "Culture générale (Apprendre)",         cat: "etude", start: "13:40", end: "13:50", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-epitech2",   title: "Epitech / projets",                    cat: "cours", start: "13:50", end: "17:15", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-prep-sport", title: "Se changer / préparer les affaires",   cat: "perso", start: "17:30", end: "18:00", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-gym",        title: "Salle de sport",                       cat: "sport", start: "18:00", end: "19:30", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-diner1",     title: "Douche / dîner",                       cat: "perso", start: "20:00", end: "20:30", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-prep-demain",title: "Préparer demain",                      cat: "perso", start: "22:00", end: "22:30", days: [1, 2, 3, 4, 5], note: "" },
+  { id: "e-coucher1",   title: "Coucher visé",                         cat: "perso", start: "22:30", end: "22:35", days: [0, 1, 2, 3, 4, 5], note: "" },
+
+  // Soirées (différentes chaque jour)
+  { id: "e-soir-lun", title: "Projets Epitech",                     cat: "projet", start: "20:30", end: "22:00", days: [1], note: "" },
+  { id: "e-soir-mar", title: "Stage + alternance (candidatures)",   cat: "tache",  start: "20:30", end: "22:00", days: [2], note: "" },
+  { id: "e-soir-mer", title: "Hack The Box / cybersécurité",        cat: "etude",  start: "20:30", end: "22:00", days: [3], note: "" },
+  { id: "e-soir-jeu", title: "Recherche job étudiant",              cat: "tache",  start: "20:30", end: "22:00", days: [4], note: "" },
+  { id: "e-soir-ven", title: "Projets / bilan hebdo",               cat: "projet", start: "20:30", end: "22:00", days: [5], note: "" },
+
+  // Samedi
+  { id: "e-sam-reveil",  title: "Réveil tranquille",                   cat: "perso", start: "08:45", end: "09:30", days: [6], note: "" },
+  { id: "e-sam-projets", title: "Projets Epitech",                     cat: "projet", start: "09:30", end: "12:30", days: [6], note: "" },
+  { id: "e-sam-dej",     title: "Pause déjeuner",                      cat: "perso", start: "12:30", end: "13:30", days: [6], note: "" },
+  { id: "e-sam-anglais", title: "Anglais (Apprendre)",                 cat: "etude", start: "13:30", end: "13:40", days: [6], note: "" },
+  { id: "e-sam-culture", title: "Culture générale (Apprendre)",        cat: "etude", start: "13:40", end: "13:50", days: [6], note: "" },
+  { id: "e-sam-candid",  title: "Candidatures stage / alternance",     cat: "tache", start: "13:50", end: "17:15", days: [6], note: "" },
+  { id: "e-sam-diner",   title: "Dîner",                               cat: "perso", start: "20:00", end: "20:30", days: [6], note: "" },
+  { id: "e-sam-htb",     title: "Hack The Box",                        cat: "etude", start: "20:30", end: "22:00", days: [6], note: "" },
+
+  // Dimanche
+  { id: "e-dim-reveil",  title: "Réveil tranquille",                   cat: "perso", start: "08:45", end: "09:30", days: [0], note: "" },
+  { id: "e-dim-repos",   title: "Repos / rattrapage léger",            cat: "perso", start: "09:30", end: "12:30", days: [0], note: "" },
+  { id: "e-dim-dej",     title: "Pause déjeuner",                      cat: "perso", start: "12:30", end: "13:30", days: [0], note: "" },
+  { id: "e-dim-anglais", title: "Anglais (Apprendre)",                 cat: "etude", start: "13:30", end: "13:40", days: [0], note: "" },
+  { id: "e-dim-culture", title: "Culture générale (Apprendre)",        cat: "etude", start: "13:40", end: "13:50", days: [0], note: "" },
+  { id: "e-dim-suivi",   title: "Suivi candidatures / prépa semaine",  cat: "tache", start: "13:50", end: "17:15", days: [0], note: "" },
+  { id: "e-dim-diner",   title: "Dîner",                               cat: "perso", start: "20:00", end: "20:30", days: [0], note: "" },
+  { id: "e-dim-prepa",   title: "Préparer la semaine",                 cat: "tache", start: "20:30", end: "22:00", days: [0], note: "" }
 ];
 
 
