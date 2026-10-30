@@ -10,7 +10,7 @@
    ========================================================== */
 
 
-const CACHE_NAME = "solo-leveling-v6";
+const CACHE_NAME = "solo-leveling-v10";
 
 const FILES = [
   "./",
@@ -31,6 +31,7 @@ const FILES = [
   "./js/data.js",
   "./js/utils.js",
   "./js/store.js",
+  "./js/sync.js",
   "./js/sound.js",
   "./js/ui.js",
   "./js/xp.js",
@@ -74,8 +75,12 @@ self.addEventListener("activate", event => {
 
 
 // Cache d'abord, puis réseau en secours (et on met à jour le cache en silence)
+// Seulement pour les fichiers du site : les requêtes vers un autre site
+// (ex: la synchronisation Firestore) ne doivent jamais être mises en cache,
+// sinon on verrait toujours la même ancienne réponse.
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+  if (new URL(event.request.url).origin !== self.location.origin) return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {
