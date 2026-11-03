@@ -10,7 +10,12 @@
    ========================================================== */
 
 
-const CACHE_NAME = "solo-leveling-v15";
+// Notifications OneSignal même quand l'appli est complètement fermée :
+// on importe leur script DANS notre propre service worker (pas de 2e SW),
+// donc le cache hors-ligne ci-dessous continue de marcher normalement.
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
+const CACHE_NAME = "solo-leveling-v17";
 
 const FILES = [
   "./",
