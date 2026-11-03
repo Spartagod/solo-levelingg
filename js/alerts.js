@@ -166,6 +166,15 @@ function renderAlerts(root) {
         <button class="btn" type="button" data-act="perm" ${!supported || granted ? "disabled" : ""}>Activer</button>
         <button class="btn" type="button" data-act="test">Tester une alerte</button>
       </div>
+    </section>
+
+    <section class="win">
+      <span class="win-t">Notifications même appli fermée</span>
+      <p class="muted">Pour les quêtes obligatoires en retard (ex : rien fait depuis 9h),
+        reçues même si le navigateur du téléphone est complètement fermé.</p>
+      <div class="row">
+        <button class="btn" type="button" data-act="push-subscribe">Activer les notifs importantes</button>
+      </div>
     </section>`;
 
   root.onclick = event => {
@@ -185,7 +194,30 @@ function renderAlerts(root) {
     }
     if (action === "test") notify({ kind: "warn", title: "TEST D'ALERTE", lines: ["Le Système fonctionne."] });
     if (action === "perm") requestBrowserNotifications(root);
+    if (action === "push-subscribe") subscribeImportantPush();
   };
+}
+
+
+// Abonnement OneSignal : notifs "quêtes en retard" même appli/navigateur fermés.
+// (Différent des "Notifications du navigateur" ci-dessus, qui ne marchent que
+// si l'onglet ou le navigateur reste ouvert en arrière-plan.)
+async function subscribeImportantPush() {
+  if (typeof OneSignal === "undefined" && !window.OneSignalDeferred) {
+    toast("OneSignal indisponible ici");
+    return;
+  }
+
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async OneSignal => {
+    try {
+      await OneSignal.Notifications.requestPermission();
+      await OneSignal.User.PushSubscription.optIn();
+      toast("Notifications importantes activées");
+    } catch (error) {
+      toast("Autorisation impossible ici");
+    }
+  });
 }
 
 
