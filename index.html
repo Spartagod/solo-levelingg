@@ -40,7 +40,7 @@
         // racine du domaine), donc il faut préciser explicitement le chemin ET
         // la portée du service worker, sinon OneSignal essaie de s'enregistrer
         // à la racine avec son propre fichier par défaut, ce qui échoue (404).
-        serviceWorkerPath: "sw.js",
+        serviceWorkerPath: "/solo-leveling/sw.js",
         serviceWorkerParam: { scope: "/solo-leveling/" }
       });
     });
