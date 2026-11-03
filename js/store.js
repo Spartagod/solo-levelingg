@@ -139,6 +139,13 @@ function loadState() {
     for (const key of Object.keys(defaults.learn.decks)) {
       if (!S.learn.decks[key]) S.learn.decks[key] = defaults.learn.decks[key];
     }
+
+    // Les quêtes de départ ont été refaites pour suivre le planning (une fois) :
+    // on ne touche à rien d'autre (XP, historique, paquets...), juste la liste des quêtes.
+    if (!S.questsMigratedV3) {
+      S.quests.templates = structuredClone(DEFAULT_QUESTS);
+      S.questsMigratedV3 = true;
+    }
   } catch (error) {
     S = defaults;
   }

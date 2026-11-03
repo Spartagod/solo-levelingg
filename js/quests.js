@@ -21,9 +21,15 @@ function isQuestDone(quest, key = dayKey()) {
 
 
 // Progression d'une quête automatique : { label, met }
-// Quête d'apprentissage : une partie terminée pour chaque sujet obligatoire
+// Quête d'apprentissage : soit un seul paquet précis (ex: Anglais),
+// soit, sans "deck", les 3 paquets obligatoires du jour (ancien comportement)
 function questProgress(quest) {
   if (!quest.auto || !quest.auto.learn) return null;
+
+  if (quest.auto.deck) {
+    const done = (dailyStats().parts?.[quest.auto.deck]?.completed || 0) >= 1;
+    return { label: done ? "Partie faite" : "Partie à faire", met: done };
+  }
 
   const total = requiredDecks().length;
   const done = partsDone();

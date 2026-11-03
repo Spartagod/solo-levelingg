@@ -82,14 +82,41 @@ const DECK_META = {
 
 
 /* ---------- Quêtes quotidiennes de départ ----------
+   Reprennent directement les blocs importants du planning (DEFAULT_EVENTS
+   ci-dessous) jour par jour, pour ne pas avoir à cocher deux fois la même
+   chose : les routines (réveil, douche, dîner...) ne deviennent pas des
+   quêtes, seulement ce qui compte vraiment chaque jour.
+
    required : une quête obligatoire manquée coûte de l'XP (zone de pénalité)
    days     : jours où elle apparaît (0 = dimanche ... 6 = samedi), absent = tous
-   auto     : validation automatique (learn = temps d'apprentissage du jour)
+   auto     : validation automatique
+              - { learn: true, deck: "english" } : partie du jour de ce paquet terminée
+              - { learn: true } (sans deck)       : les 3 paquets obligatoires du jour
    special  : "gym" = validée par le bouton de la page Sport                    */
 const DEFAULT_QUESTS = [
-  { id: "q-gym",   title: "Séance de salle de sport",        xp: 50, stat: "FOR", minutes: 90, required: true,  days: [1, 3, 5], special: "gym" },
-  { id: "q-learn", title: "Parties du jour (culture, cyber, anglais)", xp: 60, stat: "VIT", minutes: 30, required: true, auto: { learn: true } },
-  { id: "q-htb",   title: "Entraînement Hack The Box / CTF", xp: 50, stat: "INT", minutes: 60, required: false }
+  // Tous les jours
+  { id: "q-anglais", title: "Anglais",          xp: 20, stat: "PER", minutes: 10, required: true, auto: { learn: true, deck: "english" } },
+  { id: "q-culture", title: "Culture générale", xp: 20, stat: "PER", minutes: 10, required: true, auto: { learn: true, deck: "culture" } },
+
+  // Lundi à vendredi
+  { id: "q-gym",        title: "Salle de sport",   xp: 50, stat: "FOR", minutes: 90, required: true, days: [1, 2, 3, 4, 5], special: "gym" },
+  { id: "q-prep-demain", title: "Préparer demain", xp: 10, stat: "VIT", minutes: 30, required: true, days: [1, 2, 3, 4, 5] },
+
+  // Soirée spécifique à chaque jour (reprend DEFAULT_EVENTS "e-soir-...")
+  { id: "q-soir-lun", title: "Projets Epitech",                   xp: 40, stat: "AGI", minutes: 90, required: true, days: [1] },
+  { id: "q-soir-mar", title: "Stage + alternance (candidatures)", xp: 40, stat: "VIT", minutes: 90, required: true, days: [2] },
+  { id: "q-soir-mer", title: "Hack The Box / cybersécurité",      xp: 40, stat: "INT", minutes: 90, required: true, days: [3] },
+  { id: "q-soir-jeu", title: "Recherche job étudiant",            xp: 40, stat: "VIT", minutes: 90, required: true, days: [4] },
+  { id: "q-soir-ven", title: "Projets / bilan hebdo",             xp: 40, stat: "AGI", minutes: 90, required: true, days: [5] },
+
+  // Samedi
+  { id: "q-sam-projets", title: "Projets Epitech",                xp: 40, stat: "AGI", minutes: 180, required: true, days: [6] },
+  { id: "q-sam-candid",  title: "Candidatures stage / alternance", xp: 40, stat: "VIT", minutes: 180, required: true, days: [6] },
+  { id: "q-sam-htb",     title: "Hack The Box",                   xp: 40, stat: "INT", minutes: 90,  required: true, days: [6] },
+
+  // Dimanche
+  { id: "q-dim-suivi", title: "Suivi candidatures / prépa semaine", xp: 40, stat: "VIT", minutes: 180, required: true, days: [0] },
+  { id: "q-dim-prepa", title: "Préparer la semaine",                xp: 20, stat: "VIT", minutes: 90,  required: true, days: [0] }
 ];
 
 
