@@ -27,6 +27,19 @@
   <link rel="stylesheet" href="css/learn.css">
   <link rel="stylesheet" href="css/deck.css">
   <link rel="stylesheet" href="css/shell.css">
+
+  <!-- OneSignal : notifications push qui arrivent même si l'appli/le navigateur
+       est complètement fermé (contrairement à l'API Notification seule). -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function (OneSignal) {
+      await OneSignal.init({
+        appId: "METS_TON_APP_ID_ONESIGNAL_ICI",
+        serviceWorkerPath: "sw.js"
+      });
+    });
+  </script>
 </head>
 
 <body>
