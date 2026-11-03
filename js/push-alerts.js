@@ -23,7 +23,7 @@ const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
 // Change cette liste si tu veux d'autres moments.
 const CHECK_HOURS = [9, 13, 17, 20];
 
-const SITE_URL = "https://spartagod.github.io/solo-leveling/#quetes";
+const SITE_URL = "https://spartagod.github.io/solo-levelingg/#quetes";
 
 
 function pad(n) {
