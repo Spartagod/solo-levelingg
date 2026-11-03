@@ -1,1 +1,27 @@
+name: Notifs importantes (quêtes en retard)
 
+on:
+  schedule:
+    # Toutes les 15 min, le script décide lui-même s'il doit agir ou pas
+    # (voir CHECK_HOURS dans push-alerts.js). Horaires GitHub Actions = UTC,
+    # le script convertit en heure de Paris lui-même.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:   # bouton "Run workflow" pour tester manuellement
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Vérifie les quêtes et envoie la notif si besoin
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+          ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+        run: node .github/scripts/push-alerts.js
