@@ -15,7 +15,7 @@
 // donc le cache hors-ligne ci-dessous continue de marcher normalement.
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const CACHE_NAME = "solo-leveling-v17";
+const CACHE_NAME = "solo-leveling-v18";
 
 const FILES = [
   "./",
@@ -87,14 +87,28 @@ self.addEventListener("fetch", event => {
 
   event.respondWith(
     caches.match(event.request).then(cached => {
-      const fresh = fetch(event.request)
-        .then(response => {
-          if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
-          return response;
-        })
-        .catch(() => cached);
+      // Déjà en cache : on le sert tout de suite, et on met à jour le cache
+      // en silence pour la prochaine fois (pas besoin de cloner : personne
+      // d'autre ne lit cette réponse-ci).
+      if (cached) {
+        fetch(event.request)
+          .then(response => {
+            if (response && response.ok) caches.open(CACHE_NAME).then(cache => cache.put(event.request, response));
+          })
+          .catch(() => { /* hors connexion : tant pis, le cache suffit */ });
 
-      return cached || fresh;
+        return cached;
+      }
+
+      // Pas en cache : on va chercher sur le réseau, et on clone AVANT
+      // de renvoyer la réponse (un seul clone, jamais réutilisé ensuite).
+      return fetch(event.request).then(response => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      });
     })
   );
 });
