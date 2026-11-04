@@ -114,7 +114,7 @@ async function sendPush(heading, body) {
     },
     body: JSON.stringify({
       app_id: ONESIGNAL_APP_ID,
-      included_segments: ["Subscribed Users"],
+      included_segments: ["Total Subscriptions"],
       headings: { en: heading, fr: heading },
       contents: { en: body, fr: body },
       url: SITE_URL
