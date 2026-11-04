@@ -92,7 +92,16 @@ async function fetchState() {
   const file = Object.values(gist.files)[0];
   if (!file) throw new Error("Aucun fichier dans le Gist");
 
-  return JSON.parse(file.content);
+  const parsed = JSON.parse(file.content);
+
+  // sync.js enveloppe l'état du joueur dans un champ "data" (avec sûrement
+  // d'autres métadonnées à côté, genre une date de mise à jour) : c'est ça
+  // qu'il faut renvoyer, pas l'enveloppe entière.
+  if (!parsed.data || !parsed.data.quests) {
+    throw new Error("Format du Gist inattendu : pas de data.quests trouvé");
+  }
+
+  return parsed.data;
 }
 
 
