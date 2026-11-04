@@ -14,10 +14,18 @@
      ONESIGNAL_API_KEY REST API Key OneSignal
    ========================================================== */
 
+const fs = require("fs");
+const path = require("path");
+
 const GIST_TOKEN = process.env.GIST_TOKEN;
 const GIST_ID = process.env.GIST_ID;
 const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID;
 const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
+
+// Mémorise le dernier créneau notifié (date + heure) pour ne jamais envoyer
+// deux fois la même alerte, même si le cron de GitHub Actions est en retard
+// et que plusieurs exécutions tombent dans la même heure.
+const MARKER_FILE = path.join(__dirname, "last-notify.json");
 
 // Heures (Paris) où on vérifie s'il reste des quêtes obligatoires non faites.
 // Change cette liste si tu veux d'autres moments.
@@ -111,16 +119,41 @@ async function sendPush(heading, body) {
 }
 
 
+function readMarker() {
+  try {
+    return JSON.parse(fs.readFileSync(MARKER_FILE, "utf8"));
+  } catch (error) {
+    return null;
+  }
+}
+
+
+function writeMarker(key, hour) {
+  fs.writeFileSync(MARKER_FILE, JSON.stringify({ key, hour }), "utf8");
+}
+
+
 async function main() {
   if (!GIST_TOKEN || !GIST_ID || !ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) {
     throw new Error("Secret(s) manquant(s) : vérifie GIST_TOKEN, GIST_ID, ONESIGNAL_APP_ID, ONESIGNAL_API_KEY");
   }
 
-  const { key, hour, minute, weekday } = parisNow();
+  const { key, hour, weekday } = parisNow();
+
+  // FORCE_RUN=true (coché sur "Run workflow") ignore le créneau ET le marqueur, pour tester.
   const forced = process.env.FORCE_RUN === "true";
 
-  if (!forced && (!CHECK_HOURS.includes(hour) || minute >= 30)) {
-    console.log(`Hors créneau (${pad(hour)}:${pad(minute)} Paris), rien à faire.`);
+  if (!forced && !CHECK_HOURS.includes(hour)) {
+    console.log(`Hors créneau (heure ${hour}h Paris), rien à faire.`);
+    return;
+  }
+
+  // Le cron de GitHub Actions peut être en retard : on reste actif toute
+  // l'heure du créneau (pas juste les 30 premières minutes), mais on ne
+  // notifie qu'une fois par créneau grâce à ce marqueur.
+  const marker = readMarker();
+  if (!forced && marker && marker.key === key && marker.hour === hour) {
+    console.log(`Déjà notifié pour le créneau ${hour}h aujourd'hui, rien à refaire.`);
     return;
   }
 
@@ -139,6 +172,8 @@ async function main() {
 
   await sendPush(heading, `Depuis ce matin : ${titles}`);
   console.log("Notif envoyée :", heading, "-", titles);
+
+  if (!forced) writeMarker(key, hour);
 }
 
 
